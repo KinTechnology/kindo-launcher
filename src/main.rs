@@ -2,13 +2,13 @@ use anyhow::Result;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, SystemTime};
-use std::{env, fs, thread};
+use std::{fs, thread};
 
 const MAX_KINDO_REBOOT_ATTEMPT: u8 = 3;
 
 struct KindoMonitor {
-    root: PathBuf,
     runtime_dir: PathBuf,
+    kindo_bin_path: PathBuf,
 
     attempts: u8,
 }
@@ -48,10 +48,7 @@ impl KindoMonitor {
     }
 
     fn run_kindo(&self) -> Result<Child> {
-        let kindo_bin_path =
-            self.root.join("./vertex/dist/mac-arm64/kindo-app.app/Contents/MacOS/kindo-app");
-
-        let path_str = kindo_bin_path.to_str().unwrap();
+        let path_str = self.kindo_bin_path.to_str().unwrap();
 
         let mut cmd = Command::new(path_str);
         let child = cmd
@@ -66,15 +63,18 @@ impl KindoMonitor {
 
 fn main() {
     let app_env = std::env::var("APP_ENV").unwrap_or(String::from("production"));
-    println!("APP_ENV: {}", app_env);
+    let kindo_bin_path = std::env::var("KINDO_BIN_PATH")
+        .map(|path_str| PathBuf::from(path_str))
+        .unwrap_or(PathBuf::from(
+            "./vertex/dist/mac-arm64/kindo-app.app/Contents/MacOS/kindo-app".to_string(),
+        ));
 
     let runtime_dir =
         PathBuf::from(std::env::var("RUNTIME_DIRECTORY").unwrap_or(String::from("/tmp")));
 
-    let root = env::current_dir().unwrap().parent().unwrap().to_path_buf();
-
+    println!("APP_ENV: {}", app_env);
     let monitor = KindoMonitor {
-        root,
+        kindo_bin_path,
         runtime_dir,
         attempts: 0,
     };
